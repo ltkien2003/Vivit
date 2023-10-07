@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Drag & Drop File Upload</title>
+    <!-- Font Awesome Icons -->
+    <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css"
+    />
+    <!-- Google Font -->
+    <link
+            href="https://fonts.googleapis.com/css2?family=Poppins&display=swap"
+            rel="stylesheet"
+    />
+    <!-- Stylesheet -->
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+            font-family: "Poppins", sans-serif;
+        }
+
+        body {
+            background-color: #f5f8ff;
+        }
+
+        .container {
+            background-color: #ffffff;
+            width: 60%;
+            min-width: 37.5em;
+            padding: 3.12em 1.87em;
+            position: absolute;
+            transform: translateX(-50%);
+            left: 50%;
+            top: 1em;
+            box-shadow: 0 1.25em 3.43em rgba(0, 0, 0, 0.08);
+            border-radius: 0.5em;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        label {
+            display: block;
+            position: relative;
+            background-color: #025bee;
+            color: #ffffff;
+            font-size: 1.1em;
+            text-align: center;
+            width: 16em;
+            padding: 1em 0;
+            border-radius: 0.3em;
+            margin: 0 auto 1em auto;
+            cursor: pointer;
+        }
+
+        #image-display {
+            position: relative;
+            width: 90%;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-evenly;
+            gap: 1.25em;
+            flex-wrap: wrap;
+        }
+
+        #image-display figure {
+            width: 45%;
+        }
+
+        #image-display img {
+            width: 100%;
+        }
+
+        #image-display figcaption {
+            font-size: 0.8em;
+            text-align: center;
+            color: #5a5861;
+        }
+
+        .active {
+            border: 0.2em dashed #025bee;
+        }
+
+        #error {
+            text-align: center;
+            color: #ff3030;
+        }
+
+        video {
+            max-width: -webkit-fill-available;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+            display: none; /* Initially hidden */
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #video-info{
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <input type="file" id="upload-button" multiple accept="video/*"/>
+    <label for="upload-button"
+    ><i class="fa-solid fa-upload"></i>&nbsp; Choose Or Drop Video
+    </label>
+    <div id="error"></div>
+    <div id="image-display"></div>
+    <div id="loading-spinner" class="spinner"></div>
+    <div id="video-info"></div>
+</div>
+<!-- Script -->
+<script>
+    let uploadButton = document.getElementById("upload-button");
+    let chosenImage = document.getElementById("chosen-image");
+    let fileName = document.getElementById("file-name");
+    let container = document.querySelector(".container");
+    let error = document.getElementById("error");
+    let imageDisplay = document.getElementById("image-display");
+    let loadingSpinner = document.getElementById("loading-spinner");
+    let videoInfoElement = document.getElementById("video-info");
+
+
+    const fileHandler = (file, name, type) => {
+        if (type.split("/")[0] !== "video") {
+            //File Type Error
+            error.innerText = "Please upload an video file";
+            return false;
+        }
+        error.innerText = "";
+        let reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () => {
+            videoInfoElement.textContent = "";
+            // Video and file name
+            let videoContainer = document.createElement("figure");
+            let video = document.createElement("video");
+            video.src = reader.result;
+            video.setAttribute("controls", "controls");
+            videoContainer.appendChild(video);
+            videoContainer.innerHTML += `<figcaption>${name}</figcaption>`;
+            imageDisplay.appendChild(videoContainer);
+            let formData = new FormData();
+            formData.append("video", uploadButton.files[0]);
+            loadingSpinner.style.display = "block";
+            fetch("", {
+                method: "POST",
+                body: formData,
+            })
+                .then((response) => response.text())
+                .then((result) => {
+                    loadingSpinner.style.display = "none";
+                    let data = JSON.parse(result);
+                    let result_value = data.result;
+                    videoInfoElement.textContent = "This is action: " +  result_value;
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                });
+        };
+    };
+
+    //Upload Button
+    uploadButton.addEventListener("change", () => {
+        imageDisplay.innerHTML = "";
+        Array.from(uploadButton.files).forEach((file) => {
+            fileHandler(file, file.name, file.type);
+        });
+    });
+
+    container.addEventListener(
+        "dragenter",
+        (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.add("active");
+        },
+        false
+    );
+
+    container.addEventListener(
+        "dragleave",
+        (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove("active");
+        },
+        false
+    );
+
+    container.addEventListener(
+        "dragover",
+        (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.add("active");
+        },
+        false
+    );
+
+    container.addEventListener(
+        "drop",
+        (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            container.classList.remove("active");
+            let draggedData = e.dataTransfer;
+            let files = draggedData.files;
+            imageDisplay.innerHTML = "";
+            Array.from(files).forEach((file) => {
+                fileHandler(file, file.name, file.type);
+            });
+        },
+        false
+    );
+
+    window.onload = () => {
+        error.innerText = "";
+    };
+</script>
+</body>
+</html>
